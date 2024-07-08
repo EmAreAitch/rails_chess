@@ -80,6 +80,8 @@ test:
 #
 production:
   <<: *default
-  database: rails_chess_production
-  username: rails_chess
-  password: <%= ENV["RAILS_CHESS_DATABASE_PASSWORD"] %>
+  database: <%= ENV["DB_DATABASE"] %>
+  username: <%= ENV["DB_USERNAME"] %>
+  password: <%= ENV["DB_PASSWORD"] %>
+  host: <%= ENV["DB_HOST"] %>
+  port: <%= ENV["DB_PORT"] %>
