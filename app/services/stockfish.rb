@@ -2,7 +2,7 @@ require "open3"
 
 class Stockfish
   def initialize(name:)
-    @engine_path = `which stockfish`.strip
+    @engine_path = Rails.root.join('lib','stockfish','stockfish').to_s
     @name = name
     @stdin, @stdout, @stderr, @wait_thr = Open3.popen3(@engine_path)
   end
