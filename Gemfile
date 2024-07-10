@@ -48,4 +48,6 @@ end
 
 gem "syntax_tree", "~> 6.2"
 
+gem "redis", "~> 5.2"
+
 gem "hiredis", "~> 0.6.3"
