@@ -13,6 +13,8 @@ class Chess
     @board = nil
     @piece_controller = nil
     @players = []
+    @draw_offered_by = nil
+    @draw_expire_date = nil
   end
 
   def add_player(player)
@@ -64,6 +66,20 @@ class Chess
       white: @white_player.name,
       black: @black_player.name
     }
+  end
+
+  def offer_draw(from_color)
+    @draw_offered_by = from_color
+    @draw_expire_date = 10.seconds.from_now
+  end
+
+  def draw_response(data, from_color)
+    data["isAccepted"] and from_color != @draw_offered_by and @draw_expire_date >= DateTime.now
+  end
+
+  def can_offer_draw?
+    return true if @draw_expire_date.nil?
+    DateTime.now > @draw_expire_date + 2.minutes
   end
 
   private

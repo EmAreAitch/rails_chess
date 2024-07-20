@@ -38,6 +38,8 @@ Rails.application.configure do
   config.action_cable.allowed_request_origins = %w[
     https://react-rails-chess.vercel.app
     http://localhost:5173
+    http://localhost:4173
+    http://127.0.0.1:8080
   ]
 
   # Assume all access to the app is happening through a SSL-terminating reverse proxy.

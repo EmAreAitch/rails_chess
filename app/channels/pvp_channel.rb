@@ -44,15 +44,46 @@ class PvpChannel < ApplicationCable::Channel
     stop_stream_from "game_#{@room_code}"
   end
 
+  def resign
+    players = GameManager.instance.retrieve_players(@room_code)
+    oppo = players.find {|player| player.player_color != @color}
+    oppo.transmit_data({status: 'opponent_resign'})
+  end
+
   def transmit_data(data)
     transmit(data)
   end
 
+  def player_color
+    @color ||= GameManager.instance.room_has_space?(@room_code) ? :black : :white
+  end
+
+  def offer_draw
+    if GameManager.instance.can_offer_draw?(@room_code)
+      ActionCable.server.broadcast "game_#{@room_code}",{
+        status: :draw_offered,
+        color: @color
+      }
+      GameManager.instance.offer_draw(@room_code, from: @color)
+    else
+      transmit({status: :draw_cooldown})
+    end
+  end
+
+  def draw_offer_response(data)
+    draw_valid = GameManager.instance.draw_response(@room_code, data, from: @color)
+    if draw_valid
+      ActionCable.server.broadcast "game_#{@room_code}", { status: :draw_accepted } if draw_valid
+    else
+      players = GameManager.instance.retrieve_players(@room_code)
+      oppo = players.find {|player| player.player_color != @color}
+      oppo.transmit_data({status: :draw_rejected})
+    end
+
+  end
+
   private
 
-  def player_color
-    GameManager.instance.room_has_space?(@room_code) ? :black : :white
-  end
 
   def set_room_code
     if params[:room_code].present?

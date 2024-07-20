@@ -56,4 +56,16 @@ class GameManager
   def retrieve_players(game_id)
     @games[game_id]&.players || []
   end
+
+  def offer_draw(game_id, from:)
+    @games[game_id]&.offer_draw(from)
+  end
+
+  def draw_response(game_id, data, from:)
+    @games[game_id]&.draw_response(data, from)
+  end
+
+  def can_offer_draw?(game_id)
+    @games[game_id]&.can_offer_draw?
+  end
 end

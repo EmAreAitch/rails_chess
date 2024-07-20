@@ -1,6 +1,8 @@
 # require_relative "../../lib/chess_engine/chess.rb"
 # require_relative '../services/stockfish'
 
+require 'benchmark'
+
 class BotChannel < ApplicationCable::Channel
   def subscribed
     @difficulty = fetch_difficulty_timeframe
@@ -19,7 +21,9 @@ class BotChannel < ApplicationCable::Channel
     begin
       perform_move(data)
       update_player
-      perform_move(get_stockfish_move)
+      movetime = rand(@difficulty)
+      sleep(1-movetime/1000.0)
+      perform_move(get_stockfish_move(movetime))
       update_player
     rescue ChessExceptionModule::StandardChessException, ChessException => e
       transmit({ status: :failed, message: e.message })
@@ -28,6 +32,16 @@ class BotChannel < ApplicationCable::Channel
 
   def unsubscribed
     @stockfish.close
+  end
+
+  def resign
+  end
+
+  def offer_draw
+  end
+
+  def draw_offer_response(data)
+
   end
 
   private
@@ -51,7 +65,7 @@ class BotChannel < ApplicationCable::Channel
   end
 
   def perform_move(data)
-      @chess.make_move(data)
+    @chess.make_move(data)
   end
 
   def fetch_difficulty_timeframe
@@ -61,17 +75,17 @@ class BotChannel < ApplicationCable::Channel
       return
     end
     return {
-      easy_bot: (100..500),
-      normal_bot: (500..1000),
-      hard_bot: (1000..3000)
+      easy_bot: (50..200),
+      normal_bot: (200..500),
+      hard_bot: (500..1000)
     }[params[:difficulty].to_sym]
   end
 
-  def get_stockfish_move
+  def get_stockfish_move(movetime)
     move =
       @stockfish.best_move(
         "fen #{@chess.board_state}",
-        "movetime #{rand(500..1000)}"
+        "movetime #{movetime}"
       )
     return { "move" => move[...4], "promotion" => move[4..] }
   end
