@@ -15,7 +15,7 @@ class BotChannel < ApplicationCable::Channel
 
   def receive(data)
     unless current_player?
-      transmit({ status: :failed, message: "Not your turn" })
+      transmit({ status: :failed, message: "Not your turn", state: @chess.board_state })
       return
     end
     begin
@@ -26,7 +26,7 @@ class BotChannel < ApplicationCable::Channel
       perform_move(get_stockfish_move(movetime))
       update_player
     rescue ChessExceptionModule::StandardChessException, ChessException => e
-      transmit({ status: :failed, message: e.message })
+      transmit({ status: :failed, message: e.message, state: @chess.board_state })
     end
   end
 

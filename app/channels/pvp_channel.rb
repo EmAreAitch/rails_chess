@@ -13,7 +13,7 @@ class PvpChannel < ApplicationCable::Channel
 
   def receive(data)
     unless current_player?
-      transmit({ status: :failed, message: "Not your turn" })
+      transmit({ status: :failed, message: "Not your turn", state: GameManager.instance.board_state(@room_code) })
       return
     end
     begin
@@ -24,7 +24,7 @@ class PvpChannel < ApplicationCable::Channel
         ActionCable.server.broadcast "game_#{@room_code}", game_state
       end
     rescue ChessExceptionModule::StandardChessException, ChessException => e
-      transmit({ status: :failed, message: e.message })
+      transmit({ status: :failed, message: e.message, state: GameManager.instance.board_state(@room_code) })
     end
   end
 
