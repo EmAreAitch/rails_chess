@@ -9,8 +9,12 @@ class BotChannel < ApplicationCable::Channel
     return unless @difficulty
     @stockfish = Stockfish.new(name: "Botty")
     @chess = Chess.new
-    transmit({ status: :room_joined, room: room_code, color: :white })
+    transmit({ status: :room_joined, room: room_code, color: get_player_color })
     start_game
+    if get_player_color == 'black'
+      perform_bot_move
+      update_player
+    end
   end
 
   def receive(data)
@@ -21,9 +25,7 @@ class BotChannel < ApplicationCable::Channel
     begin
       perform_move(data)
       update_player
-      movetime = rand(@difficulty)
-      sleep(1-movetime/1000.0)
-      perform_move(get_stockfish_move(movetime))
+      perform_bot_move
       update_player
     rescue ChessExceptionModule::StandardChessException, ChessException => e
       transmit({ status: :failed, message: e.message, state: @chess.board_state })
@@ -46,12 +48,23 @@ class BotChannel < ApplicationCable::Channel
 
   private
 
+  def get_player_color
+    return :white unless params[:color]
+    params[:color]
+  end
+
+  def perform_bot_move
+    movetime = rand(@difficulty)
+    sleep(1-movetime/1000.0)
+    perform_move(get_stockfish_move(movetime))
+  end
+
   def update_player
     board_state = build_board_state
     transmit(board_state)
     game_state = build_game_state
     unless game_state[:status] == :in_progress
-      sleep 2
+      sleep 0.2
       transmit(game_state)
     end
   end
@@ -70,7 +83,7 @@ class BotChannel < ApplicationCable::Channel
 
   def fetch_difficulty_timeframe
     unless params[:difficulty].present?
-      transmit({ status: :error })
+      transmit({ status: :error, message: "Difficulty not found" })
       reject
       return
     end
@@ -91,8 +104,9 @@ class BotChannel < ApplicationCable::Channel
   end
 
   def start_game
-    @chess.add_player(self)
-    @chess.add_player(@stockfish)
+    color = get_player_color.to_sym
+    @chess.add_player(self, color)
+    @chess.add_player(@stockfish, color == :white ? :black : :white)
     @chess.start_game
     transmit({ status: :game_started, **@chess.players_details })
   end

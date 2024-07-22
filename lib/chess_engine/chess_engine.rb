@@ -17,12 +17,12 @@ class Chess
     @draw_expire_date = nil
   end
 
-  def add_player(player)
+  def add_player(player, color = @white_player.nil? ? :white : :black)
     raise GameIsFull if @black_player and @white_player
-    if @white_player.nil?
+    if @white_player.nil? and color == :white
       @white_player = Player.new(player.current_player, color: :white)
       @players << player
-    else
+    elsif @black_player.nil? and color == :black
       @black_player = Player.new(player.current_player, color: :black)
       @players << player
     end
@@ -63,8 +63,8 @@ class Chess
 
   def players_details
     {
-      white: @white_player.name,
-      black: @black_player.name
+      white: @white_player&.name,
+      black: @black_player&.name
     }
   end
 
