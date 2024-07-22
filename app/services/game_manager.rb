@@ -29,14 +29,14 @@ class GameManager
   end
 
   def get_room_from_queue
-    if @room_queue.empty?
-      code = generate_room_code
+    loop do
+      code = @room_queue.pop(true) rescue nil
+      if code.nil?
+        code = generate_room_code
+        @room_queue << code
+      end
+      return code unless @games.key? code
       @room_queue << code
-      return code
-    else
-      code = @room_queue.pop
-      @room_queue << code unless @games.key? code
-      return code
     end
   end
 

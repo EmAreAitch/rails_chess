@@ -101,7 +101,7 @@ class PvpChannel < ApplicationCable::Channel
         @room_code = params[:room_code]
     elsif params[:vs_friend]
       @room_code = game_manager.generate_room_code
-    else
+    elsif params[:room_code].nil?
       @room_code = game_manager.get_room_from_queue
     end
   end
