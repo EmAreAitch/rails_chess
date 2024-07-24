@@ -42,7 +42,6 @@ class PiecesController
     last_move = @move_list.last
     from_square = last_move.from_square
     to_square = last_move.to_square
-    puts "FROM_SQUARE #{from_square} - TO_SQUARE #{to_square}"
     en_passant_square =
       from_square.get_squares_in_between(to_square).find { |i| i != to_square }
     return en_passant_square.notation.downcase

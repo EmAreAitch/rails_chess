@@ -5,7 +5,7 @@ class GameManager
   include Singleton
 
   def initialize
-    @games = Concurrent::Hash.new
+    @games = Concurrent::Map.new
     @room_queue = Queue.new
   end
 
@@ -15,7 +15,7 @@ class GameManager
   end
 
   def add_player_to_room(game_id, player, color)
-    @games[game_id] = Chess.new unless @games.key? game_id
+    @games.compute_if_absent(game_id) { Chess.new }
     @games[game_id].add_player(player, color)
     game = @games[game_id]
     unless room_has_space?(game_id)
@@ -29,15 +29,14 @@ class GameManager
   end
 
   def get_room_from_queue
-    loop do
-      code = @room_queue.pop(true) rescue nil
-      if code.nil?
-        code = generate_room_code
-        @room_queue << code
-      end
-      return code unless @games.key? code
-      @room_queue << code
-    end
+    code = @room_queue.pop(true) rescue nil
+    code = generate_room_code if code.nil?
+    @room_queue << code unless @games.key? code
+    return code
+  end
+
+  def games
+    @games
   end
 
   def players_details(game_id)
