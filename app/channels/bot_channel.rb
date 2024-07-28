@@ -9,6 +9,7 @@ class BotChannel < ApplicationCable::Channel
     transmit({ status: :room_joined, room: room_code, color: get_player_color })
     start_game
     if get_player_color == "black"
+      sleep 0.5
       perform_bot_move
       update_player
     end
@@ -36,7 +37,6 @@ class BotChannel < ApplicationCable::Channel
   def unsubscribed
     @stockfish.close
   end
-
   def resign
   end
 
@@ -55,7 +55,7 @@ class BotChannel < ApplicationCable::Channel
 
   def perform_bot_move
     movetime = rand(@difficulty)
-    sleep(1 - movetime / 1000.0)
+    sleep(0.5 - movetime / 1000.0)
     perform_move(get_stockfish_move(movetime))
   end
 
@@ -86,16 +86,23 @@ class BotChannel < ApplicationCable::Channel
       return
     end
     return(
-      { easy_bot: (50..200), normal_bot: (200..500), hard_bot: (500..1000) }[
+      { easy_bot: (50..100), normal_bot: (100..250), hard_bot: (250..500) }[
         params[:difficulty].to_sym
       ]
     )
   end
 
   def get_stockfish_move(movetime)
-    move =
-      @stockfish.best_move("fen #{@chess.board_state}", "movetime #{movetime}")
-    return { "move" => move[...4], "promotion" => move[4..] }
+    begin
+      move =
+        @stockfish.best_move(
+          "fen #{@chess.board_state}",
+          "movetime #{movetime}"
+        )
+      return { "move" => move[...4], "promotion" => move[4..] }
+    rescue StandardError
+      transmit({ status: :room_destroyed, message: "Server Error!!" })
+    end
   end
 
   def start_game

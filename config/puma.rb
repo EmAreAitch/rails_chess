@@ -63,6 +63,7 @@ on_worker_boot do |worker_number|
   retries = 0
   socket_path =
     File.join(DRUBY_SOCKET_DIR, "chess_#{worker_number + 1}_druby.sock")
+  File.unlink(socket_path) if File.exist?(socket_path)
   begin
     DRb.start_service("drbunix:#{socket_path}")
     $GameManager = DRbObject.new_with_uri("drbunix:#{DRUBY_SOCKET_PATH}")

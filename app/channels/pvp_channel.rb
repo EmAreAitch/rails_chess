@@ -8,7 +8,11 @@ class PvpChannel < ApplicationCable::Channel
     end
     stream_from "game_#{@room_code}"
     transmit({ status: :room_joined, room: @room_code, color: player_color })
-    game_manager.add_player_to_room(@room_code, DRbObject.new(self), @color)
+    game_manager.add_player_to_room(
+      @room_code,
+      Rails.env.development? ? self : DRbObject.new(self),
+      @color
+    )
     start_game unless game_manager.room_has_space?(@room_code)
   end
 
@@ -104,7 +108,7 @@ class PvpChannel < ApplicationCable::Channel
   private
 
   def game_manager
-    $GameManager
+    $GameManager || GameManager.instance
   end
 
   def start_game
