@@ -6,9 +6,7 @@ require "rails/all"
 # you've limited to :test, :development, or :production.
 Bundler.require(*Rails.groups)
 
-if Rails.env.development? || Rails.env.test?
-  Dotenv::Rails.load
-end
+Dotenv::Rails.load if Rails.env.development? || Rails.env.test?
 
 module RailsChess
   class Application < Rails::Application
@@ -18,8 +16,7 @@ module RailsChess
     # Please, add to the `ignore` list any other `lib` subdirectories that do
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
     # Common ones are `templates`, `generators`, or `middleware`, for example.
-    config.autoload_lib(ignore: %w(assets tasks chess_engine))
-
+    config.autoload_lib(ignore: %w[assets tasks chess])
     # Configuration for the application, engines, and railties goes here.
     #
     # These settings can be overridden in specific environments using the files

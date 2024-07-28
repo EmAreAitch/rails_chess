@@ -1,5 +1,5 @@
-require_relative "../../lib/chess_engine/chess_engine.rb"
-require 'concurrent-ruby'
+require_relative "./chess_engine/chess_engine.rb"
+require "concurrent-ruby"
 
 class GameManager
   include Singleton
@@ -7,36 +7,31 @@ class GameManager
   def initialize
     @games = Concurrent::Map.new
     @room_queue = Queue.new
+    return nil
   end
 
   def start_game(game_id)
     game = @games[game_id]
     game.start_game if game
+    return nil
   end
 
   def add_player_to_room(game_id, player, color)
     @games.compute_if_absent(game_id) { Chess.new }
     @games[game_id].add_player(player, color)
-    game = @games[game_id]
-    unless room_has_space?(game_id)
-      start_game(game_id)
-      ActionCable.server.broadcast "game_#{game_id}",
-                                   {
-                                     status: :game_started,
-                                     **game.players_details
-                                   }
-    end
+    return nil
   end
 
   def get_room_from_queue
-    code = @room_queue.pop(true) rescue nil
+    code =
+      begin
+        @room_queue.pop(true)
+      rescue StandardError
+        nil
+      end
     code = generate_room_code if code.nil?
     @room_queue << code unless @games.key? code
     return code
-  end
-
-  def games
-    @games
   end
 
   def players_details(game_id)
@@ -49,11 +44,13 @@ class GameManager
 
   def flush_game(game_id)
     @games.delete(game_id)
+    return nil
   end
 
   def make_move(game_id, move_data)
     game = @games[game_id]
     game&.make_move(move_data) if game
+    return nil
   end
 
   def current_player_name(game_id)
@@ -75,6 +72,7 @@ class GameManager
 
   def offer_draw(game_id, from:)
     @games[game_id]&.offer_draw(from)
+    return nil
   end
 
   def draw_response(game_id, data, from:)

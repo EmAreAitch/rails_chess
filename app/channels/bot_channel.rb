@@ -1,7 +1,4 @@
-# require_relative "../../lib/chess_engine/chess.rb"
-# require_relative '../services/stockfish'
-
-require 'benchmark'
+require "benchmark"
 
 class BotChannel < ApplicationCable::Channel
   def subscribed
@@ -11,7 +8,7 @@ class BotChannel < ApplicationCable::Channel
     @chess = Chess.new
     transmit({ status: :room_joined, room: room_code, color: get_player_color })
     start_game
-    if get_player_color == 'black'
+    if get_player_color == "black"
       perform_bot_move
       update_player
     end
@@ -19,7 +16,9 @@ class BotChannel < ApplicationCable::Channel
 
   def receive(data)
     unless current_player?
-      transmit({ status: :failed, message: "Not your turn", state: @chess.board_state })
+      transmit(
+        { status: :failed, message: "Not your turn", state: @chess.board_state }
+      )
       return
     end
     begin
@@ -28,7 +27,9 @@ class BotChannel < ApplicationCable::Channel
       perform_bot_move
       update_player
     rescue ChessExceptionModule::StandardChessException, ChessException => e
-      transmit({ status: :failed, message: e.message, state: @chess.board_state })
+      transmit(
+        { status: :failed, message: e.message, state: @chess.board_state }
+      )
     end
   end
 
@@ -43,7 +44,6 @@ class BotChannel < ApplicationCable::Channel
   end
 
   def draw_offer_response(data)
-
   end
 
   private
@@ -55,7 +55,7 @@ class BotChannel < ApplicationCable::Channel
 
   def perform_bot_move
     movetime = rand(@difficulty)
-    sleep(1-movetime/1000.0)
+    sleep(1 - movetime / 1000.0)
     perform_move(get_stockfish_move(movetime))
   end
 
@@ -70,11 +70,9 @@ class BotChannel < ApplicationCable::Channel
   end
 
   def room_code
-    {
-      easy_bot: '000001',
-      normal_bot: '000002',
-      hard_bot: '000003',
-    }[params[:difficulty].to_sym]
+    { easy_bot: "000001", normal_bot: "000002", hard_bot: "000003" }[
+      params[:difficulty].to_sym
+    ]
   end
 
   def perform_move(data)
@@ -87,19 +85,16 @@ class BotChannel < ApplicationCable::Channel
       reject
       return
     end
-    return {
-      easy_bot: (50..200),
-      normal_bot: (200..500),
-      hard_bot: (500..1000)
-    }[params[:difficulty].to_sym]
+    return(
+      { easy_bot: (50..200), normal_bot: (200..500), hard_bot: (500..1000) }[
+        params[:difficulty].to_sym
+      ]
+    )
   end
 
   def get_stockfish_move(movetime)
     move =
-      @stockfish.best_move(
-        "fen #{@chess.board_state}",
-        "movetime #{movetime}"
-      )
+      @stockfish.best_move("fen #{@chess.board_state}", "movetime #{movetime}")
     return { "move" => move[...4], "promotion" => move[4..] }
   end
 

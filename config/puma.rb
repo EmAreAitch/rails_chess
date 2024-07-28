@@ -14,7 +14,10 @@ threads min_threads_count, max_threads_count
 # Specifies that the worker count should equal the number of processors in production.
 if ENV["RAILS_ENV"] == "production"
   require "concurrent-ruby"
-  worker_count = Integer(ENV.fetch("WEB_CONCURRENCY") { Concurrent.physical_processor_count })
+  worker_count =
+    Integer(
+      ENV.fetch("WEB_CONCURRENCY") { Concurrent.physical_processor_count }
+    )
   workers worker_count if worker_count > 1
 end
 
@@ -33,3 +36,49 @@ pidfile ENV.fetch("PIDFILE") { "tmp/pids/server.pid" }
 
 # Allow puma to be restarted by `bin/rails restart` command.
 plugin :tmp_restart
+
+require "drb"
+require "fileutils"
+require_relative "../lib/chess/game_manager.rb"
+
+# Define the socket path within the Rails app directory
+DRUBY_SOCKET_DIR = Rails.root.join("tmp", "sockets").to_s
+DRUBY_SOCKET_PATH = File.join(DRUBY_SOCKET_DIR, "chess_druby.sock")
+
+before_fork do |server, worker|
+  # Ensure the sockets directory exists
+  FileUtils.mkdir_p(DRUBY_SOCKET_DIR)
+
+  # Remove the socket file if it already exists
+  File.unlink(DRUBY_SOCKET_PATH) if File.exist?(DRUBY_SOCKET_PATH)
+
+  # Start dRuby server in the master process using Unix socket
+  game_manager = GameManager.instance
+  DRb.start_service("drbunix:#{DRUBY_SOCKET_PATH}", game_manager)
+  puts "dRuby server started on Unix socket: #{DRUBY_SOCKET_PATH}"
+end
+
+on_worker_boot do |worker_number|
+  # Connect to dRuby server in each worker
+  retries = 0
+  socket_path =
+    File.join(DRUBY_SOCKET_DIR, "chess_#{worker_number + 1}_druby.sock")
+  begin
+    DRb.start_service("drbunix:#{socket_path}")
+    $GameManager = DRbObject.new_with_uri("drbunix:#{DRUBY_SOCKET_PATH}")
+    puts "Worker #{worker_number} connected to dRuby server via Unix socket"
+  rescue DRb::DRbConnError => e
+    retries += 1
+    if retries < 3
+      puts "Failed to connect to dRuby server, retrying in 2 seconds..."
+      sleep 2
+      retry
+    else
+      puts "Failed to connect to dRuby server after 3 attempts"
+      raise e
+    end
+  end
+end
+
+# Cleanup
+at_exit { DRb.stop_service }

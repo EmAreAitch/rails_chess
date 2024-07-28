@@ -13,14 +13,16 @@ class Chess
     @board = nil
     @piece_controller = nil
     @players = []
+    @draw_offered_by = nil
+    @draw_expire_date = nil
   end
 
-  def add_player(player)
+  def add_player(player, color = @white_player.nil? ? :white : :black)
     raise GameIsFull if @black_player and @white_player
-    if @white_player.nil?
+    if @white_player.nil? and color == :white
       @white_player = Player.new(player.current_player, color: :white)
       @players << player
-    else
+    elsif @black_player.nil? and color == :black
       @black_player = Player.new(player.current_player, color: :black)
       @players << player
     end
@@ -60,10 +62,22 @@ class Chess
   end
 
   def players_details
-    {
-      white: @white_player.name,
-      black: @black_player.name
-    }
+    { white: @white_player&.name, black: @black_player&.name }
+  end
+
+  def offer_draw(from_color)
+    @draw_offered_by = from_color
+    @draw_expire_date = 10.seconds.from_now
+  end
+
+  def draw_response(data, from_color)
+    data["isAccepted"] and from_color != @draw_offered_by and
+      @draw_expire_date >= DateTime.now
+  end
+
+  def can_offer_draw?
+    return true if @draw_expire_date.nil?
+    DateTime.now > @draw_expire_date + 2.minutes
   end
 
   private

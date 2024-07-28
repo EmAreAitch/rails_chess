@@ -8,12 +8,19 @@ class PvpChannel < ApplicationCable::Channel
     end
     stream_from "game_#{@room_code}"
     transmit({ status: :room_joined, room: @room_code, color: player_color })
-    game_manager.add_player_to_room(@room_code, self, @color)
+    game_manager.add_player_to_room(@room_code, DRbObject.new(self), @color)
+    start_game unless game_manager.room_has_space?(@room_code)
   end
 
   def receive(data)
     unless current_player?
-      transmit({ status: :failed, message: "Not your turn", state: game_manager.board_state(@room_code) })
+      transmit(
+        {
+          status: :failed,
+          message: "Not your turn",
+          state: game_manager.board_state(@room_code)
+        }
+      )
       return
     end
     begin
@@ -25,7 +32,13 @@ class PvpChannel < ApplicationCable::Channel
         ActionCable.server.broadcast "game_#{@room_code}", game_state
       end
     rescue ChessExceptionModule::StandardChessException, ChessException => e
-      transmit({ status: :failed, message: e.message, state: game_manager.board_state(@room_code) })
+      transmit(
+        {
+          status: :failed,
+          message: e.message,
+          state: game_manager.board_state(@room_code)
+        }
+      )
     end
   end
 
@@ -47,8 +60,8 @@ class PvpChannel < ApplicationCable::Channel
 
   def resign
     players = game_manager.retrieve_players(@room_code)
-    oppo = players.find {|player| player.player_color != @color}
-    oppo.transmit_data({status: 'opponent_resign'})
+    oppo = players.find { |player| player.player_color != @color }
+    oppo.transmit_data({ status: "opponent_resign" })
   end
 
   def transmit_data(data)
@@ -66,39 +79,47 @@ class PvpChannel < ApplicationCable::Channel
 
   def offer_draw
     if game_manager.can_offer_draw?(@room_code)
-      ActionCable.server.broadcast "game_#{@room_code}",{
-        status: :draw_offered,
-        color: @color
-      }
+      ActionCable.server.broadcast "game_#{@room_code}",
+                                   { status: :draw_offered, color: @color }
       game_manager.offer_draw(@room_code, from: @color)
     else
-      transmit({status: :draw_cooldown})
+      transmit({ status: :draw_cooldown })
     end
   end
 
   def draw_offer_response(data)
     draw_valid = game_manager.draw_response(@room_code, data, from: @color)
     if draw_valid
-      ActionCable.server.broadcast "game_#{@room_code}", { status: :draw_accepted } if draw_valid
+      if draw_valid
+        ActionCable.server.broadcast "game_#{@room_code}",
+                                     { status: :draw_accepted }
+      end
     else
       players = game_manager.retrieve_players(@room_code)
-      oppo = players.find {|player| player.player_color != @color}
-      oppo.transmit_data({status: :draw_rejected})
+      oppo = players.find { |player| player.player_color != @color }
+      oppo.transmit_data({ status: :draw_rejected })
     end
-
   end
 
   private
 
   def game_manager
-    GameManager.instance
+    $GameManager
   end
 
+  def start_game
+    game_manager.start_game(@room_code)
+    ActionCable.server.broadcast "game_#{@room_code}",
+                                 {
+                                   status: :game_started,
+                                   **game_manager.players_details(@room_code)
+                                 }
+  end
 
   def set_room_code
-
-    if params[:room_code]&.match?(/^\d{6}$/) && game_manager.room_has_space?(params[:room_code])
-        @room_code = params[:room_code]
+    if params[:room_code]&.match?(/^\d{6}$/) &&
+         game_manager.room_has_space?(params[:room_code])
+      @room_code = params[:room_code]
     elsif params[:vs_friend]
       @room_code = game_manager.generate_room_code
     elsif params[:room_code].nil?
