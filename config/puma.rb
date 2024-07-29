@@ -62,7 +62,7 @@ on_worker_boot do |worker_number|
   # Connect to dRuby server in each worker
   retries = 0
   socket_path =
-    File.join(DRUBY_SOCKET_DIR, "chess_#{worker_number + 1}_druby.sock")
+    File.join(DRUBY_SOCKET_DIR, "chess_worker_#{worker_number + 1}.sock")
   File.unlink(socket_path) if File.exist?(socket_path)
   begin
     DRb.start_service("drbunix:#{socket_path}")
@@ -82,4 +82,7 @@ on_worker_boot do |worker_number|
 end
 
 # Cleanup
-at_exit { DRb.stop_service }
+at_exit do
+  Stockfish.instance.cleanup
+  DRb.stop_service
+end

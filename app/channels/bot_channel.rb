@@ -4,7 +4,7 @@ class BotChannel < ApplicationCable::Channel
   def subscribed
     @difficulty = fetch_difficulty_timeframe
     return unless @difficulty
-    @stockfish = Stockfish.new(name: "Botty")
+    @stockfish = Stockfish.instance
     @chess = Chess.new
     transmit({ status: :room_joined, room: room_code, color: get_player_color })
     start_game
@@ -25,8 +25,10 @@ class BotChannel < ApplicationCable::Channel
     begin
       perform_move(data)
       update_player
-      perform_bot_move
-      update_player
+      if game_in_progress?
+        perform_bot_move
+        update_player
+      end
     rescue ChessExceptionModule::StandardChessException, ChessException => e
       transmit(
         { status: :failed, message: e.message, state: @chess.board_state }
@@ -34,9 +36,6 @@ class BotChannel < ApplicationCable::Channel
     end
   end
 
-  def unsubscribed
-    @stockfish.close
-  end
   def resign
   end
 
@@ -54,9 +53,9 @@ class BotChannel < ApplicationCable::Channel
   end
 
   def perform_bot_move
-    movetime = rand(@difficulty)
-    sleep(0.5 - movetime / 1000.0)
-    perform_move(get_stockfish_move(movetime))
+    delay_time = 0.5.seconds.from_now
+    perform_move(get_stockfish_move)
+    sleep(delay_time - Time.now) if (delay_time - Time.now).positive?
   end
 
   def update_player
@@ -86,18 +85,19 @@ class BotChannel < ApplicationCable::Channel
       return
     end
     return(
-      { easy_bot: (50..100), normal_bot: (100..250), hard_bot: (250..500) }[
+      { easy_bot: 800, normal_bot: 1200, hard_bot: 1600 }[
         params[:difficulty].to_sym
       ]
     )
   end
 
-  def get_stockfish_move(movetime)
+  def get_stockfish_move()
     begin
       move =
         @stockfish.best_move(
           "fen #{@chess.board_state}",
-          "movetime #{movetime}"
+          "movetime 500",
+          @difficulty
         )
       return { "move" => move[...4], "promotion" => move[4..] }
     rescue StandardError
@@ -106,9 +106,10 @@ class BotChannel < ApplicationCable::Channel
   end
 
   def start_game
+    player_obj = Struct.new(:current_player).new("Botty")
     color = get_player_color.to_sym
     @chess.add_player(self, color)
-    @chess.add_player(@stockfish, color == :white ? :black : :white)
+    @chess.add_player(player_obj, color == :white ? :black : :white)
     @chess.start_game
     transmit({ status: :game_started, **@chess.players_details })
   end
@@ -123,5 +124,9 @@ class BotChannel < ApplicationCable::Channel
 
   def current_player?
     @chess.current_player.name.eql? current_player
+  end
+
+  def game_in_progress?
+    @chess.game_state[:status] == :in_progress
   end
 end
