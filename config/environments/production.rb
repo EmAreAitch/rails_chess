@@ -36,7 +36,7 @@ Rails.application.configure do
   # config.action_cable.mount_path = nil
   # config.action_cable.url = "wss://example.com/cable"
   config.action_cable.allowed_request_origins = %w[
-    https://react-rails-chess.vercel.app
+    https://quickmate.vercel.app
     http://localhost:5173
     http://localhost:4173
     http://127.0.0.1:8080
